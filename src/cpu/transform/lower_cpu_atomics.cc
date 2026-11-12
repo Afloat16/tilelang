@@ -159,7 +159,58 @@ public:
     return StmtExprMutator::VisitStmt_(op);
   }
 
+  Stmt VisitStmt_(const WhileNode *op) final {
+    auto [condition, prefix] = RewriteExprWithPrefix_(op->condition);
+    Stmt body = VisitStmt(op->body);
+    if (prefix.empty()) {
+      return While(condition, body, op->span);
+    }
+    // A condition's atomics execute on every check, including the final one.
+    prefix.push_back(IfThenElse(
+        Not(condition),
+        Evaluate(Call(DataType::Void(), builtin::break_loop(), {}))));
+    prefix.push_back(body);
+    return While(const_true(), SeqStmt::Flatten(prefix), op->span);
+  }
+
+  PrimExpr VisitExpr_(const AndNode *op) final {
+    if (op->dtype != DataType::Bool()) {
+      return StmtExprMutator::VisitExpr_(op);
+    }
+    PrimExpr lhs = VisitExpr(op->a);
+    auto rhs = RewriteExprWithPrefix_(op->b);
+    if (rhs.second.empty()) {
+      return And(lhs, rhs.first, op->span);
+    }
+    return MakeConditionalResult_(lhs, std::move(rhs), {const_false(), {}},
+                                  op->span);
+  }
+
+  PrimExpr VisitExpr_(const OrNode *op) final {
+    if (op->dtype != DataType::Bool()) {
+      return StmtExprMutator::VisitExpr_(op);
+    }
+    PrimExpr lhs = VisitExpr(op->a);
+    auto rhs = RewriteExprWithPrefix_(op->b);
+    if (rhs.second.empty()) {
+      return Or(lhs, rhs.first, op->span);
+    }
+    return MakeConditionalResult_(lhs, {const_true(), {}}, std::move(rhs),
+                                  op->span);
+  }
+
   PrimExpr VisitExpr_(const CallNode *op) final {
+    if (op->op.same_as(builtin::if_then_else())) {
+      PrimExpr condition = VisitExpr(op->args[0]);
+      auto then_value = RewriteExprWithPrefix_(op->args[1]);
+      auto else_value = RewriteExprWithPrefix_(op->args[2]);
+      if (then_value.second.empty() && else_value.second.empty()) {
+        return if_then_else(condition, then_value.first, else_value.first,
+                            op->span);
+      }
+      return MakeConditionalResult_(condition, std::move(then_value),
+                                    std::move(else_value), op->span);
+    }
     if (op->op.same_as(atomic_load_elem_op())) {
       // Pure read on a serial target.
       AtomicAccess access = ParseAtomicAccessPtr(op->args[0], "atomic_load");
@@ -181,6 +232,34 @@ public:
   }
 
 private:
+  std::pair<PrimExpr, std::vector<Stmt>>
+  RewriteExprWithPrefix_(const PrimExpr &expr) {
+    std::vector<Stmt> outer_prefix = std::move(pending_prefix_);
+    pending_prefix_.clear();
+    PrimExpr value = VisitExpr(expr);
+    std::vector<Stmt> prefix = std::move(pending_prefix_);
+    pending_prefix_ = std::move(outer_prefix);
+    return {value, std::move(prefix)};
+  }
+
+  PrimExpr
+  MakeConditionalResult_(const PrimExpr &condition,
+                         std::pair<PrimExpr, std::vector<Stmt>> then_value,
+                         std::pair<PrimExpr, std::vector<Stmt>> else_value,
+                         Span span) {
+    // Keep each branch's RMW prefix under its original lazy condition. A
+    // local result carries the selected value back into the enclosing expr.
+    Buffer result = decl_buffer({1}, then_value.first.dtype(),
+                                "atomic_conditional", "local");
+    then_value.second.push_back(BufferStore(result, then_value.first, {0}));
+    else_value.second.push_back(BufferStore(result, else_value.first, {0}));
+    pending_prefix_.push_back(AllocBuffer(result));
+    pending_prefix_.push_back(
+        IfThenElse(condition, SeqStmt::Flatten(then_value.second),
+                   SeqStmt::Flatten(else_value.second), span));
+    return BufferLoad(result, {0});
+  }
+
   AtomicAccess ParseAtomicAccessPtr(const PrimExpr &ptr, const char *role) {
     const auto *call = ptr.as<CallNode>();
     ICHECK(call != nullptr && call->op.same_as(tl::access_ptr()))

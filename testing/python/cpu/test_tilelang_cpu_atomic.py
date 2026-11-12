@@ -420,3 +420,79 @@ def test_cpu_atomic_multiple_return_prev_one_statement():
     torch.testing.assert_close(out_p, prefix + (100.0 + prefix), rtol=1e-4, atol=1e-4)
     torch.testing.assert_close(out_b0, A.sum().reshape((1,)), rtol=1e-4, atol=1e-4)
     torch.testing.assert_close(out_b1, 100.0 + A.sum().reshape((1,)), rtol=1e-4, atol=1e-4)
+
+
+def test_cpu_atomic_return_prev_in_lazy_conditional():
+    @T.prim_func
+    def main(Flags: T.Tensor((4,), "int32"), State: T.Tensor((3,), "int32"), Prev: T.Tensor((4,), "int32")):
+        with T.Kernel(1):
+            for i in T.serial(4):
+                Prev[i] = T.if_then_else(
+                    T.atomic_add(State[2], 1, return_prev=True) < Flags[i],
+                    T.atomic_add(State[0], 1, return_prev=True),
+                    T.atomic_add(State[1], 10, return_prev=True),
+                )
+
+    kernel = _compile_c(main, out_idx=[2])
+    flags = torch.tensor([1, 0, 3, 0], dtype=torch.int32, device="cpu")
+    state = torch.tensor([10, 20, 0], dtype=torch.int32, device="cpu")
+    previous = kernel(flags, state)
+    torch.testing.assert_close(state, torch.tensor([12, 40, 4], dtype=torch.int32), rtol=0, atol=0)
+    torch.testing.assert_close(previous, torch.tensor([10, 20, 11, 30], dtype=torch.int32), rtol=0, atol=0)
+
+
+def test_cpu_atomic_return_prev_in_nested_conditional():
+    @T.prim_func
+    def main(Flags: T.Tensor((4,), "int32"), State: T.Tensor((3,), "int32"), Prev: T.Tensor((4,), "int32")):
+        with T.Kernel(1):
+            for i in T.serial(4):
+                Prev[i] = T.if_then_else(
+                    Flags[i] > 0,
+                    T.if_then_else(
+                        Flags[i] > 1,
+                        T.atomic_add(State[0], 1, return_prev=True),
+                        T.atomic_add(State[1], 10, return_prev=True),
+                    ),
+                    T.atomic_add(State[2], 100, return_prev=True),
+                )
+
+    kernel = _compile_c(main, out_idx=[2])
+    flags = torch.tensor([2, 0, 1, 0], dtype=torch.int32, device="cpu")
+    state = torch.tensor([10, 20, 30], dtype=torch.int32, device="cpu")
+    previous = kernel(flags, state)
+    torch.testing.assert_close(state, torch.tensor([11, 30, 230], dtype=torch.int32), rtol=0, atol=0)
+    torch.testing.assert_close(previous, torch.tensor([10, 30, 20, 130], dtype=torch.int32), rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("logical_op", ["and", "or"])
+def test_cpu_atomic_return_prev_in_short_circuit(logical_op):
+    @T.prim_func
+    def main(Flags: T.Tensor((4,), "int32"), State: T.Tensor((1,), "int32"), Out: T.Tensor((4,), "int32")):
+        with T.Kernel(1):
+            for i in T.serial(4):
+                if logical_op == "and":
+                    Out[i] = T.cast(T.And(Flags[i] > 0, T.atomic_add(State[0], 1, return_prev=True) >= 1), "int32")
+                else:
+                    Out[i] = T.cast(T.Or(Flags[i] > 0, T.atomic_add(State[0], 1, return_prev=True) >= 1), "int32")
+
+    kernel = _compile_c(main, out_idx=[2])
+    flags = torch.tensor([1, 0, 1, 0], dtype=torch.int32, device="cpu")
+    state = torch.zeros(1, dtype=torch.int32, device="cpu")
+    output = kernel(flags, state)
+    expected = [False, False, True, False] if logical_op == "and" else [True, False, True, True]
+    torch.testing.assert_close(state, torch.tensor([2], dtype=torch.int32), rtol=0, atol=0)
+    torch.testing.assert_close(output, torch.tensor(expected, dtype=torch.int32), rtol=0, atol=0)
+
+
+def test_cpu_atomic_return_prev_in_while_condition():
+    @T.prim_func
+    def main(State: T.Tensor((2,), "int32")):
+        with T.Kernel(1):
+            # The first condition also bounds execution of a broken lowering.
+            while T.And(State[1] < 5, T.atomic_add(State[0], 1, return_prev=True) < 3):
+                State[1] = State[1] + 1
+
+    kernel = _compile_c(main, out_idx=[])
+    state = torch.zeros(2, dtype=torch.int32, device="cpu")
+    kernel(state)
+    torch.testing.assert_close(state, torch.tensor([4, 3], dtype=torch.int32), rtol=0, atol=0)
