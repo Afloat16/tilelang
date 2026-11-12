@@ -14,6 +14,7 @@ results.
 
 import re
 
+import pytest
 import torch
 
 import tilelang
@@ -85,3 +86,34 @@ def test_vec_type_arith_compiles_and_executes_on_cpu():
     torch.testing.assert_close(sub, a - b)
     torch.testing.assert_close(mul, a * b)
     torch.testing.assert_close(div, a / b)
+
+
+@pytest.mark.parametrize(
+    "src_dtype,dst_dtype",
+    [
+        ("float32", "float64"),
+        ("float64", "float32"),
+        ("float32", "int32"),
+        ("int32", "float32"),
+        ("float16", "float32"),
+        ("float32", "float16"),
+    ],
+)
+def test_vec_type_dtype_cast_compiles_and_executes_on_cpu(src_dtype, dst_dtype):
+    @T.prim_func
+    def cast(A: T.Tensor((16,), src_dtype), B: T.Tensor((16,), dst_dtype)):
+        for i in T.Parallel(16):
+            B[i] = T.cast(A[i], dst_dtype)
+
+    with tvm.target.Target("c"):
+        source = tilelang.lower(cast).kernel_source
+    # The regression is the generated vector conversion, not a scalar fallback.
+    assert re.search(r"(?:float|double|half|int32_t)[248]", source), source
+    kernel = tilelang.compile(cast, out_idx=[1], target="c", target_host="c", execution_backend="cython")
+    values = torch.tensor(
+        [-12.75, -8.5, -4.25, -1.0, -0.5, 0.0, 0.25, 0.75, 1.5, 2.25, 3.0, 4.5, 7.25, 8.0, 16.5, 31.75],
+        dtype=getattr(torch, src_dtype),
+        device="cpu",
+    )
+    expected = values.to(getattr(torch, dst_dtype))
+    torch.testing.assert_close(kernel(values), expected, rtol=0, atol=0)

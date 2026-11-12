@@ -19,6 +19,10 @@ template <typename T, int N> struct vec_type {
     for (int i = 0; i < N; i++)
       data[i] = v;
   }
+  template <typename U> explicit vec_type(const vec_type<U, N> &other) {
+    for (int i = 0; i < N; i++)
+      data[i] = static_cast<T>(other.data[i]);
+  }
   vec_type operator+(const vec_type &o) const {
     vec_type r;
     for (int i = 0; i < N; i++)
