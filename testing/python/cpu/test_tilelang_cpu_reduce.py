@@ -68,26 +68,29 @@ def _emit_reduce(T, op: str, src, dst, dim: int, clear: bool):
         raise ValueError(op)
 
 
-def _make_kernel_2d(op: str, M: int, N: int, dim: int, dtype: str, clear: bool):
+def _make_kernel_2d(op: str, M: int, N: int, dim: int, dtype: str, clear: bool, out_dtype: str | None = None, io_dtype: str | None = None):
     legal = dim if dim >= 0 else 2 + dim
     dst_shape = (N,) if legal == 0 else (M,)
+    out_dtype = out_dtype or dtype
+    input_dtype = io_dtype or dtype
+    output_dtype = io_dtype or out_dtype
 
     @T.prim_func
     def main(
-        A: T.Tensor((M, N), dtype),
-        Init: T.Tensor(dst_shape, dtype),
-        B: T.Tensor(dst_shape, dtype),
+        A: T.Tensor((M, N), input_dtype),
+        Init: T.Tensor(dst_shape, output_dtype),
+        B: T.Tensor(dst_shape, output_dtype),
     ):
         with T.Kernel(1):
             src = T.alloc_local((M, N), dtype)
-            dst = T.alloc_local(dst_shape, dtype)
+            dst = T.alloc_local(dst_shape, out_dtype)
             for i, j in T.grid(M, N):
-                src[i, j] = A[i, j]
+                src[i, j] = T.cast(A[i, j], dtype)
             for i in T.grid(dst_shape[0]):
-                dst[i] = Init[i]
+                dst[i] = T.cast(Init[i], out_dtype)
             _emit_reduce(T, op, src, dst, dim=legal, clear=clear)
             for i in T.grid(dst_shape[0]):
-                B[i] = dst[i]
+                B[i] = T.cast(dst[i], output_dtype)
 
     return main
 
@@ -233,3 +236,53 @@ def test_cpu_reduce_non_divisible_extent():
     out = kernel(A, Init)
     expected = _ref_reduce(A, "sum", dim=1)
     torch.testing.assert_close(out, expected, rtol=1e-4, atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "op,dtype,out_dtype,clear",
+    [
+        ("sum", "float32", "float64", True),
+        ("sum", "float32", "float64", False),
+        ("sum", "uint8", "uint32", True),
+        ("max", "float16", "float32", True),
+        ("min", "float32", "float64", True),
+        ("abssum", "int8", "int32", True),
+        ("absmax", "int16", "int64", True),
+        ("bitand", "int32", "int64", True),
+        ("bitor", "int8", "int32", True),
+        ("bitxor", "uint8", "uint32", True),
+    ],
+)
+def test_cpu_reduce_wider_accumulator(op, dtype, out_dtype, clear):
+    # The Cython CPU wrapper cannot expose uint32 buffers. Exercise the local
+    # uint8 -> uint32 reduction with int64 inputs/outputs and explicit casts.
+    io_dtype = "int64" if out_dtype == "uint32" else None
+    func = _make_kernel_2d(op, 2, 4, 1, dtype, clear, out_dtype=out_dtype, io_dtype=io_dtype)
+    kernel = _compile_c(func)
+    if dtype == "float32":
+        # The first row loses its unit contribution with float32 accumulation.
+        values = [[2**24, 1, -(2**24), 2], [2**24, -(2**24), 1, 2]]
+    elif dtype.startswith("uint"):
+        values = [[255, 255, 254, 1], [0, 1, 2, 3]]
+    elif dtype.startswith("int"):
+        minimum = torch.iinfo(_torch_dtype(dtype)).min
+        values = [[minimum, -3, -1, 0], [1, 2, 3, 4]]
+    else:
+        values = [[-8, -0.5, 0.25, 7], [2, 4, -2, 0]]
+    source = torch.tensor(values, dtype=_torch_dtype(dtype))
+    initial = torch.tensor([1, 3], dtype=_torch_dtype(out_dtype))
+    output = kernel(source.to(_torch_dtype(io_dtype)) if io_dtype else source, initial.to(_torch_dtype(io_dtype)) if io_dtype else initial)
+    # PyTorch has limited uint32 arithmetic; int64 represents these inputs and
+    # their expected reductions exactly without narrowing the source first.
+    reference_dtype = torch.int64 if out_dtype.startswith("uint") else _torch_dtype(out_dtype)
+    expected = _ref_reduce(source.to(reference_dtype), op, dim=1)
+    if not clear:
+        expected += initial.to(reference_dtype)
+    torch.testing.assert_close(output, expected.to(_torch_dtype(io_dtype or out_dtype)), rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("dtype,out_dtype", [("float64", "float32"), ("int32", "uint64"), ("float32", "int64"), ("bfloat16", "float32")])
+def test_cpu_reduce_rejects_unsupported_accumulator_conversions(dtype, out_dtype):
+    func = _make_kernel_2d("sum", 2, 4, 1, dtype, True, out_dtype=out_dtype)
+    with pytest.raises(tvm.error.InternalError, match="CPU reduce:"):
+        _compile_c(func)

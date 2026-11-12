@@ -81,9 +81,22 @@ struct Reduce {
         << "CPU reduce: dst ndim must be src_ndim-1 (no keepdim) or "
            "src_ndim (keepdim), got src_ndim="
         << src_dim << ", dst_ndim=" << dst_dim;
-    ICHECK(src_buffer->dtype == dst_buffer->dtype)
-        << "CPU reduce: src and dst dtypes must match, got "
-        << src_buffer->dtype << " vs " << dst_buffer->dtype;
+    const DataType src_dtype = src_buffer->dtype;
+    const DataType dst_dtype = dst_buffer->dtype;
+    // MakeReduce casts each source element to the accumulator dtype before
+    // applying the reduction. Allow scalar widening without introducing
+    // narrowing, signedness changes, or float/integer conversions.
+    const bool same_numeric_kind =
+        (src_dtype.is_float() && dst_dtype.is_float()) ||
+        (src_dtype.is_int() && dst_dtype.is_int()) ||
+        (src_dtype.is_uint() && !src_dtype.is_bool() && dst_dtype.is_uint());
+    const bool scalar_widening =
+        src_dtype.lanes() == 1 && dst_dtype.lanes() == 1 &&
+        dst_dtype.bits() > src_dtype.bits() && same_numeric_kind;
+    ICHECK(src_dtype == dst_dtype || scalar_widening)
+        << "CPU reduce: accumulator dtype must match the source or be a wider "
+           "scalar dtype of the same numeric kind, got "
+        << src_dtype << " vs " << dst_dtype;
 
     // 5. Index construction (mirror backend LowerLocal reduce.h:651-671).
     Array<Var> dst_vars;
