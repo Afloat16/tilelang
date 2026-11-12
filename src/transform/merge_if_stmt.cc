@@ -46,13 +46,22 @@ private:
   }
 
   Stmt VisitStmt_(const SeqStmtNode *op) final {
+    Array<Stmt> visited_seq;
+    for (const Stmt &stmt : op->seq) {
+      visited_seq.push_back(this->VisitStmt(stmt));
+    }
+    return MergeSequence_(visited_seq, op->span);
+  }
+
+  // Children have already been rewritten. Merging their bodies can expose new
+  // adjacent ifs, but must not revisit unrelated descendants at every level.
+  Stmt MergeSequence_(const Array<Stmt> &seq, Span span = Span()) {
     // First, recursively flatten nested SeqStmt so that
     //   SeqStmt{ if, SeqStmt{ if, SeqStmt{ if } } }
     // becomes a single-level sequence of [if, if, if].
     Array<Stmt> flat_seq;
-    for (const Stmt &stmt : op->seq) {
-      Stmt new_stmt = this->VisitStmt(stmt);
-      FlattenAppend(new_stmt, &flat_seq);
+    for (const Stmt &stmt : seq) {
+      FlattenAppend(stmt, &flat_seq);
     }
 
     // Then, merge consecutive IfThenElse (without else) that share the same
@@ -72,12 +81,11 @@ private:
             continue;
           } else {
             if (!current_if_bodies.empty()) {
-              auto if_stmt =
-                  IfThenElse(current_condition,
-                             current_if_bodies.size() == 1
-                                 ? current_if_bodies[0]
-                                 : this->VisitStmt(SeqStmt(current_if_bodies)),
-                             Stmt(), current_span);
+              auto if_stmt = IfThenElse(current_condition,
+                                        current_if_bodies.size() == 1
+                                            ? current_if_bodies[0]
+                                            : MergeSequence_(current_if_bodies),
+                                        Stmt(), current_span);
               new_seq.push_back(if_stmt);
               current_if_bodies.clear();
             }
@@ -91,12 +99,11 @@ private:
       }
 
       if (!current_if_bodies.empty()) {
-        auto if_stmt =
-            IfThenElse(current_condition,
-                       current_if_bodies.size() == 1
-                           ? current_if_bodies[0]
-                           : this->VisitStmt(SeqStmt(current_if_bodies)),
-                       Stmt(), current_span);
+        auto if_stmt = IfThenElse(current_condition,
+                                  current_if_bodies.size() == 1
+                                      ? current_if_bodies[0]
+                                      : MergeSequence_(current_if_bodies),
+                                  Stmt(), current_span);
         new_seq.push_back(if_stmt);
         current_condition = PrimExpr();
         current_if_bodies.clear();
@@ -106,16 +113,15 @@ private:
     }
 
     if (!current_if_bodies.empty()) {
-      auto if_stmt =
-          IfThenElse(current_condition,
-                     current_if_bodies.size() == 1
-                         ? current_if_bodies[0]
-                         : this->VisitStmt(SeqStmt(current_if_bodies)),
-                     Stmt(), current_span);
+      auto if_stmt = IfThenElse(current_condition,
+                                current_if_bodies.size() == 1
+                                    ? current_if_bodies[0]
+                                    : MergeSequence_(current_if_bodies),
+                                Stmt(), current_span);
       new_seq.push_back(if_stmt);
     }
 
-    return new_seq.size() == 1 ? new_seq[0] : SeqStmt(new_seq, op->span);
+    return new_seq.size() == 1 ? new_seq[0] : SeqStmt(new_seq, span);
   }
 };
 
