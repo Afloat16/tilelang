@@ -10,6 +10,7 @@ from tvm import DataType
 import numpy as np
 
 from tilelang.transform import simplify_prim_func
+from bitnet_weight_packing import general_compress
 
 torch.manual_seed(42)
 
@@ -173,24 +174,6 @@ def bitnet_158_int8xint2_decode(
                 C[by, bx * n_partition + ni] = reduced_accum_res[0]
 
     return kernel
-
-
-def general_compress(lowprecision_weight, source_bits=4, storage_dtype=np.int8):
-    elems_per_byte = 8 // source_bits
-    if lowprecision_weight.dtype == np.float16:
-        lowprecision_weight = lowprecision_weight.astype(dtype=np.int8)
-    int8_weight = np.zeros(
-        (
-            *lowprecision_weight.shape[:-1],
-            lowprecision_weight.shape[-1] // elems_per_byte,
-        ),
-        dtype=np.int8,
-    )
-    for j in range(lowprecision_weight.shape[-1] // elems_per_byte):
-        for k in range(elems_per_byte):
-            int8_weight[:, j] |= lowprecision_weight[:, j * elems_per_byte + k] << (source_bits * k)
-
-    return int8_weight.view(storage_dtype)
 
 
 # interleave weight numpy implementation
