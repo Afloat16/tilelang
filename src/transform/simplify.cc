@@ -146,6 +146,9 @@ CollectUsedBuffers(const PrimFunc &func) {
     }
 
     void VisitBuffer(const Buffer &buf) {
+      if (!visited_buffers_.insert(buf.get()).second) {
+        return;
+      }
       // Collect buffers that should remain defined
       VarUseDefAnalyzer usage(Array<Var>{});
       usage(buf->data);
@@ -167,6 +170,7 @@ CollectUsedBuffers(const PrimFunc &func) {
       }
     }
     PrimFunc func;
+    std::unordered_set<const BufferNode *> visited_buffers_;
     std::unordered_set<const BufferNode *> used_in_buffer_def_;
   };
 
@@ -192,6 +196,9 @@ CollectVarsUsedInBufferDefinition(const Stmt &stmt) {
     }
 
     void VisitBuffer(const Buffer &buf) {
+      if (!visited_buffers_.insert(buf.get()).second) {
+        return;
+      }
       // Collect variables that should remain defined
       VarUseDefAnalyzer usage(Array<Var>{});
       usage(buf->data);
@@ -208,6 +215,7 @@ CollectVarsUsedInBufferDefinition(const Stmt &stmt) {
         used_in_buffer_def_.insert(var.get());
       }
     }
+    std::unordered_set<const BufferNode *> visited_buffers_;
     std::unordered_set<const VarNode *> used_in_buffer_def_;
   };
 

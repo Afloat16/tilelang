@@ -842,6 +842,28 @@ def test_simplify_keeps_binds_used_in_buffer_metadata():
     simplify_and_compare(mod_before, mod_before)
 
 
+def test_simplify_keeps_metadata_of_distinct_views_with_shared_data():
+    source = tirx.decl_buffer((2,), "int32")
+    first_size = tirx.Var("first_size", "int32")
+    second_size = tirx.Var("second_size", "int32")
+    data = tirx.Var("data", tvm.ir.PointerType(tvm.ir.PrimType("float32")))
+    first = tirx.decl_buffer((first_size,), "float32", data=data)
+    second = tirx.decl_buffer((second_size,), "float32", data=data)
+    body = tirx.SeqStmt(
+        [
+            tirx.Bind(first_size, source[0]),
+            tirx.Bind(second_size, source[1]),
+            tirx.Bind(data, tirx.call_pure_extern("handle", "get_pointer")),
+            tirx.BufferStore(first, 1.0, [0]),
+            tirx.BufferStore(first, 2.0, [1]),
+            tirx.BufferStore(second, 3.0, [0]),
+            tirx.BufferStore(second, 4.0, [1]),
+        ]
+    )
+    mod = tvm.IRModule.from_expr(tirx.PrimFunc([source], body))
+    simplify_and_compare(mod, mod)
+
+
 def test_simplify_keeps_bind_used_in_nested_annotation():
     """A variable referenced only through annotation maps/arrays is still live."""
     source = tirx.decl_buffer((1,), "int32")
