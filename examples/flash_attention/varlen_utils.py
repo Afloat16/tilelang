@@ -153,8 +153,7 @@ def varlen_attention_ref(q_unpad, k_unpad, v_unpad, cu_seqlens_q, cu_seqlens_k, 
     for b in range(cu_seqlens_q.numel() - 1):
         q_start, q_end = int(cu_seqlens_q[b]), int(cu_seqlens_q[b + 1])
         k_start, k_end = int(cu_seqlens_k[b]), int(cu_seqlens_k[b + 1])
-        if q_end == q_start:
-            continue
+        # Keep empty outputs in the concatenation and connected to autograd.
         qb = q_unpad[q_start:q_end].transpose(0, 1).unsqueeze(0).float()
         kb = k_unpad[k_start:k_end].transpose(0, 1).unsqueeze(0).float()
         vb = v_unpad[k_start:k_end].transpose(0, 1).unsqueeze(0).float()
