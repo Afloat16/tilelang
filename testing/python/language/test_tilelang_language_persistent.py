@@ -16,19 +16,9 @@ def _make_persistent(domain, wave_size, **options):
         for coordinate in coordinates:
             language.evaluate(coordinate)
 
-    bindings = {}
-    loops = []
-
-    def collect(statement):
-        if isinstance(statement, tvm.tirx.Bind):
-            bindings[statement.var] = statement.value
-        elif isinstance(statement, tvm.tirx.For):
-            loops.append(statement)
-
-    tvm.tirx.stmt_functor.post_order_visit(builder.get(), collect)
-    assert len(loops) == 1
-    loop = loops[0]
-    return loop, worker, tvm.tirx.stmt_functor.substitute(loop.body, bindings)
+    loop = builder.get()
+    assert isinstance(loop, tvm.tirx.For)
+    return loop, worker, loop.body
 
 
 def _trace_persistent(loop, worker, body, wave_size, parameters):
@@ -42,6 +32,9 @@ def _trace_persistent(loop, worker, body, wave_size, parameters):
     def execute(statement, values, coordinates):
         if isinstance(statement, tvm.tirx.SeqStmt):
             return any(execute(child, values, coordinates) for child in statement.seq)
+        if isinstance(statement, tvm.tirx.Bind):
+            values[statement.var] = evaluate(statement.value, values)
+            return False
         if isinstance(statement, tvm.tirx.IfThenElse):
             branch = statement.then_case if evaluate(statement.condition, values) else statement.else_case
             return execute(branch, values, coordinates) if branch is not None else False
@@ -63,6 +56,20 @@ def _trace_persistent(loop, worker, body, wave_size, parameters):
             if coordinates:
                 events.append((wave_index * wave_size + worker_index, tuple(coordinates)))
     return sorted(events)
+
+
+@pytest.mark.parametrize("domain", [(11,), (2, 3), (2, 3, 10)])
+def test_persistent_coordinate_bindings_are_inside_wave_loop(domain):
+    worker = tvm.tirx.Var("worker", "int32")
+    with IRBuilder() as builder, language.Persistent(list(domain), 4, worker) as coordinates:
+        if len(domain) == 1:
+            coordinates = [coordinates]
+        for coordinate in coordinates:
+            language.evaluate(coordinate)
+
+    # Coordinates depend on the wave variable, so their bindings must not
+    # reference it before the loop introduces it.
+    assert not tvm.tirx.analysis.undefined_vars(builder.get(), [worker])
 
 
 @pytest.mark.parametrize("domain", [(11,), (2, 4), (3, 10), (2, 3, 10)])
@@ -111,6 +118,8 @@ def test_persistent_guards_body_without_loop_break(wave_size):
             assert node.op.name != "tl.loop_break"
 
     tvm.tirx.stmt_functor.post_order_visit(body, check_no_loop_break)
+    while isinstance(body, tvm.tirx.SeqStmt):
+        body = body.seq[-1]
     assert isinstance(body, tvm.tirx.IfThenElse)
     assert body.else_case is None
 

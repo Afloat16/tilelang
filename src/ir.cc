@@ -223,14 +223,14 @@ ForFrame PersistentFor(const Array<PrimExpr> &domain, const PrimExpr &wave_size,
     }
     Optional<PrimExpr> step =
         !steps.empty() ? steps[0] : Optional<PrimExpr>(std::nullopt);
-    Stmt outer = For(loop_var, 0, waves, ForKind::kSerial, new_body,
-                     /*thread_binding=*/std::nullopt, /*annotations=*/anno,
-                     /*step=*/step);
     for (int i = 0; i < vars.size() - 1; ++i) {
-      outer = SeqStmt({tirx::Bind(vars[i], idxs[i + 1]), outer});
+      new_body = SeqStmt({tirx::Bind(vars[i], idxs[i + 1]), new_body});
     }
-    outer = SeqStmt({tirx::Bind(vars[vars.size() - 1], last_coord), outer});
-    return outer;
+    new_body =
+        SeqStmt({tirx::Bind(vars[vars.size() - 1], last_coord), new_body});
+    return For(loop_var, 0, waves, ForKind::kSerial, new_body,
+               /*thread_binding=*/std::nullopt, /*annotations=*/anno,
+               /*step=*/step);
   };
 
   return ForFrame(n);
