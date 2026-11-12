@@ -898,6 +898,30 @@ def test_encode_ue4m3_scale_bytes_known_values():
     assert torch.isnan(decode_ue4m3_scale_bytes(torch.tensor([0x7F], dtype=torch.uint8))).all()
 
 
+@pytest.mark.parametrize("layout", ["contiguous", "strided", "scalar", "empty"])
+@pytest.mark.parametrize("without_float8", [False, True])
+def test_decode_ue4m3_scale_bytes_cpu(layout, without_float8, monkeypatch):
+    codes = torch.arange(256, dtype=torch.uint8).reshape(16, 16)
+    values = [
+        code * 2.0**-9 if code < 8 else (1.0 + (code & 7) / 8.0) * 2.0 ** ((code >> 3) - 7) if code < 127 else float("nan")
+        for code in range(128)
+    ]
+    expected = torch.tensor(values * 2, dtype=torch.float32).reshape(16, 16)
+    if layout == "strided":
+        codes, expected = codes.T, expected.T
+    elif layout == "scalar":
+        codes, expected = codes[7, 14], expected[7, 14]
+    elif layout == "empty":
+        codes, expected = codes[:0], expected[:0]
+    if without_float8:
+        monkeypatch.delattr(torch, "float8_e4m3fn", raising=False)
+
+    decoded = decode_ue4m3_scale_bytes(codes)
+    assert decoded.dtype == torch.float32
+    assert decoded.device == codes.device
+    torch.testing.assert_close(decoded, expected, rtol=0, atol=0, equal_nan=True)
+
+
 @tilelang_testing.requires_cuda
 def test_decode_ue4m3_scale_byte_device_helper_matches_host_reference():
     """The device decoder must agree with the host reference for every code.

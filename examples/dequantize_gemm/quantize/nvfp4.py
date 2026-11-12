@@ -67,6 +67,10 @@ def decode_ue4m3_scale_bytes(scale_bytes):
     if scale_bytes.dtype != torch.uint8:
         raise TypeError(f"scale_bytes must have dtype torch.uint8, got {scale_bytes.dtype}")
 
+    float8_dtype = getattr(torch, "float8_e4m3fn", None)
+    if scale_bytes.device.type == "cpu" and float8_dtype is not None:
+        return (scale_bytes & 0x7F).view(float8_dtype).to(torch.float32)
+
     u = scale_bytes.to(torch.int32) & 0x7F
     exponent = (u >> 3) & 0x0F
     mantissa = u & 0x07
