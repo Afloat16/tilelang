@@ -1,0 +1,442 @@
+{
+  "base": "54f19ec58db2463b7f3f5c7fe50608a598129295",
+  "paths": [
+    "src/tl_templates/cpp/common.h",
+    "src/tl_templates/cpu/common.h"
+  ],
+  "commit_count": 96,
+  "blob_count": 20,
+  "blobs": {
+    "f27aa22b9ecfdee51123ac34e4f12225d07e36e4": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "1621c68bb463314d2753883dd0c52d008c081f12"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  template <typename U> explicit vec_type(const vec_type<U, N> &other) {\n    for (int i = 0; i < N; i++)\n      data[i] = static_cast<T>(other.data[i]);\n  }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n  // Compound assignment \u2014 avoids temporary vec_type objects\n  vec_type &operator+=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] += o.data[i];\n    return *this;\n  }\n  vec_type &operator-=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] -= o.data[i];\n    return *this;\n  }\n  vec_type &operator*=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] *= o.data[i];\n    return *this;\n  }\n  vec_type &operator/=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] /= o.data[i];\n    return *this;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n",
+      "has_vec_type": true,
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "+=",
+        "-=",
+        "*=",
+        "/="
+      ]
+    },
+    "b69b23186f4a6fd17a8796cba79a7b5b9fa6c17c": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "1621c68bb463314d2753883dd0c52d008c081f12",
+        "06c20968131fd2fc3b8d2600ce701ebec7abf688",
+        "a958708cd1860baaf04655623cd9f7413d174e0f",
+        "131b1910ce989f4546ff2749d0278b05b031b158",
+        "8059493c4a98773b64ad43b4147a7fae2a407858",
+        "dec9bba5630de8fa3383902ff25e7938cc4d08c7",
+        "de1c460f4f8857067dc98bb8442483fbd4bf4d7a",
+        "d65e8c2430abaf36c3045d126b3b3699bb3507d0",
+        "bf5636b6ff348e25f19414301db0bcf1e2bdcaaf",
+        "d2bb67ab5f79cecfd8bc678039b5564d47d7e09a",
+        "aa607d48e61ac9ba71a3dbcf351e2a2d3a34999d",
+        "2a5589e09b34e0416828f7580db28867fd05c026",
+        "704f578391383e4b58f25ac212c3f267beca1129",
+        "917e25d82e46399fa8527a388b83aa302991e09f",
+        "b6d953ab5172a2413882ca991f52a418e75bda91",
+        "cb1724f932b34ce44f461cd28387994ee4745a46",
+        "eec0970c660c42d3bebcd3c2e994d6c1bfe74e1b",
+        "2cde143a44a54000049b05f1bf4c928ada72979b",
+        "5695356a675bd5d395d45b603e6c05f499474f95",
+        "c155bf887e30a7aab4df761d5216d06c980dbfa7",
+        "b2f38a0d565706cb8733616ebb3c4c61af583a02",
+        "b1e05e879d8800e309dfee44d2642ba69e3106bd",
+        "4547ec4bc7d1e2d744e3fd3e3500aada86f29d72",
+        "8e1e54c0efaf27ae6898e1c74e32259a3d0decbf",
+        "d94dedc669f35f6659a85bcbf4cee59b0aae2b5e",
+        "76233625141378c8b09fc496c1815e57a6100a9b",
+        "d12e2e74b5e92952a2d1605ba2deb911819c7872",
+        "a2cf4c2b1e8ec9989896b39b357131bc567cbc56",
+        "4ddaa5e5b96b664089bd979646ed98284a39806f",
+        "e80c06199720d9b3e8e5884dce3fa7eb2b064cbc",
+        "954b75e321ffa9a184ac0f0843d5e02c8d0f60c7",
+        "8763e4140607550f79460a8b5c779868a21eae7b",
+        "eb9f9a6959f76450c76b90301f1e8c9c001b89a9",
+        "29e8a457ef187009bbc54a348cd81e4265d0c012",
+        "e91cfcd233272f55f19f6e7bb3e8548baaa532df",
+        "7091db5956eae40a5cf39c7debfc655cfa5357d0",
+        "17ddc0e088e4e70a741ebfb735b30b1d18d42049",
+        "4f5ff41b8ca0850fd0cbb21bb82f9210eb79173c",
+        "6ca118bf954bcf917c398e06b3485a500ea3a6da",
+        "a10b0b8dd6c4783762a6b3ab9f7a450881b20f22",
+        "4bdbd2d66ad9c9d0cfe613561083e0b7bf177009",
+        "d6ed3499fa4da0592df995e6fe75419c4605b0ab",
+        "215f1f9c02414ffee383bfd30db37c57f76f2c69",
+        "eca50e18cafa6e56602f8148def756821a94b1eb",
+        "9b4eb58f8e7c3ab8b3c2ff0584829971c4800dd3",
+        "0a492c561dfafeac21da369838a1e629f7fe0853",
+        "73c8fa057983bca8c37e6feb271643cd18a70e23",
+        "9697ef89ce2103386a113d1f16d5e2bc3a57e17c",
+        "8cae18a151d5667d407ed1222dd3efbf20ba7a5f",
+        "97abc1f400ecb85df7eaa67b889348066aebd3e1",
+        "62f3131c1c6153f51ebd067070e3da7147dded4e",
+        "1dc86d7114e5e047a00cd42f83f8490631c5114d",
+        "7c0b332889cdb31537e28d2f38f87f51bc37cb21",
+        "b3f4e03e695b552499e3d8ae5c76775f9e713a86",
+        "47a89225ad76fc8de49925be04045270fe19c212",
+        "5e0ca6383746dc00ad01c7bd1b26c32f8a7d7a37",
+        "220c0e9e32e499b6f52a6ab606d5b1acbebf767c",
+        "c7fb9b82251b63c41ba9b801bdb651e1af8d4527",
+        "416f03ab05cc75d2d91d1caa60f665c6029792bd",
+        "9ab0119ce1c420f0839bd76b2b4c315f46dd340d",
+        "26ac2fe45e8ff9cdd45b42ea364063f38ed9f1a4",
+        "289ef29607641fa89be58880df06366012ac35f5",
+        "9f190f680d1881777ea2c09a5c7eea32e81c295d",
+        "5f37623905549f5de9ea51ab8ffcd20d8825ad04",
+        "2818cd9c64d7fc6c2de10a747009c1bb901c8145",
+        "e90b5a846214de05239a1533e0790abc7375fa11",
+        "33123632e214b995aa64caa2df28942a6eefdb74",
+        "60856265bd7b2b35e33ebe329a61b5a954dd3a66",
+        "026aa567894b8750c018bcf5291f90c6d0aa1ab2",
+        "22455f2ffeb471a461c82bd2f3ab75a133666d74",
+        "017d314bf7d5af1236fe1e8ebc0b5d217e6f5a55",
+        "3ce8ac9b06428deee75c29fcbe65bac494b81f47",
+        "f1a101997fa8ef4644b5714bb98a5af241de9861",
+        "93348455b1f14dca24b48b7d29d1a0f35ebdc7c7",
+        "2674271e49d8d376632d26b6acf8736786275fab",
+        "40dfe433ab78736b3278ed562308322bc562cb86",
+        "be9c08f6fd5899b04b51ec7ba7a067cf6822c3e3"
+      ],
+      "content": "#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n\n// Not Implemented\nF\n",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "a7057a123cb8ced61b3d45d4682a77561ce5ba77": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "06c20968131fd2fc3b8d2600ce701ebec7abf688",
+        "a958708cd1860baaf04655623cd9f7413d174e0f",
+        "131b1910ce989f4546ff2749d0278b05b031b158",
+        "dec9bba5630de8fa3383902ff25e7938cc4d08c7",
+        "de1c460f4f8857067dc98bb8442483fbd4bf4d7a",
+        "d65e8c2430abaf36c3045d126b3b3699bb3507d0",
+        "bf5636b6ff348e25f19414301db0bcf1e2bdcaaf",
+        "d2bb67ab5f79cecfd8bc678039b5564d47d7e09a",
+        "aa607d48e61ac9ba71a3dbcf351e2a2d3a34999d",
+        "704f578391383e4b58f25ac212c3f267beca1129",
+        "b6d953ab5172a2413882ca991f52a418e75bda91",
+        "cb1724f932b34ce44f461cd28387994ee4745a46",
+        "eec0970c660c42d3bebcd3c2e994d6c1bfe74e1b",
+        "2cde143a44a54000049b05f1bf4c928ada72979b",
+        "5695356a675bd5d395d45b603e6c05f499474f95",
+        "c155bf887e30a7aab4df761d5216d06c980dbfa7",
+        "b2f38a0d565706cb8733616ebb3c4c61af583a02",
+        "b1e05e879d8800e309dfee44d2642ba69e3106bd",
+        "4547ec4bc7d1e2d744e3fd3e3500aada86f29d72",
+        "8e1e54c0efaf27ae6898e1c74e32259a3d0decbf",
+        "d94dedc669f35f6659a85bcbf4cee59b0aae2b5e",
+        "76233625141378c8b09fc496c1815e57a6100a9b",
+        "d12e2e74b5e92952a2d1605ba2deb911819c7872",
+        "a2cf4c2b1e8ec9989896b39b357131bc567cbc56",
+        "4ddaa5e5b96b664089bd979646ed98284a39806f",
+        "8cae18a151d5667d407ed1222dd3efbf20ba7a5f",
+        "97abc1f400ecb85df7eaa67b889348066aebd3e1",
+        "62f3131c1c6153f51ebd067070e3da7147dded4e",
+        "1dc86d7114e5e047a00cd42f83f8490631c5114d",
+        "7c0b332889cdb31537e28d2f38f87f51bc37cb21"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n  // Compound assignment \u2014 avoids temporary vec_type objects\n  vec_type &operator+=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] += o.data[i];\n    return *this;\n  }\n  vec_type &operator-=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] -= o.data[i];\n    return *this;\n  }\n  vec_type &operator*=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] *= o.data[i];\n    return *this;\n  }\n  vec_type &operator/=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] /= o.data[i];\n    return *this;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n",
+      "has_vec_type": true,
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "+=",
+        "-=",
+        "*=",
+        "/="
+      ]
+    },
+    "d175cf1d762d7b3df21bd377d65033df83fdad75": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "8059493c4a98773b64ad43b4147a7fae2a407858"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n#include <type_traits>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and constructs vectors from either one broadcast value or N lane values.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  template <typename... Args, typename = std::enable_if_t<sizeof...(Args) == N>>\n  explicit vec_type(Args... values) : data{static_cast<T>(values)...} {}\n  template <typename U> explicit vec_type(const vec_type<U, N> &other) {\n    for (int i = 0; i < N; ++i)\n      data[i] = static_cast<T>(other.data[i]);\n  }\n  T &operator[](int lane) { return data[lane]; }\n  const T &operator[](int lane) const { return data[lane]; }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n  // Compound assignment \u2014 avoids temporary vec_type objects\n  vec_type &operator+=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] += o.data[i];\n    return *this;\n  }\n  vec_type &operator-=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] -= o.data[i];\n    return *this;\n  }\n  vec_type &operator*=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] *= o.data[i];\n    return *this;\n  }\n  vec_type &operator/=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] /= o.data[i];\n    return *this;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##3 = vec_type<T, 3>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n\nnamespace tl {\n\ntemplate <typename T> inline T clamp(T x, T lo, T hi) {\n  if (x != x)\n    return x;\n  if (lo != lo)\n    return lo;\n  if (hi != hi)\n    return hi;\n  T lower = x < lo ? lo : x;\n  return lower > hi ? hi : lower;\n}\n\ntemplate <typename T, int N>\ninline vec_type<T, N> clamp(vec_type<T, N> x, vec_type<T, N> lo,\n                            vec_type<T, N> hi) {\n  vec_type<T, N> result;\n  for (int i = 0; i < N; ++i) {\n    result.data[i] = clamp(x.data[i], lo.data[i], hi.data[i]);\n  }\n  return result;\n}\n\n} // namespace tl\n",
+      "has_vec_type": true,
+      "operators": [
+        "[]",
+        "[]",
+        "+",
+        "-",
+        "*",
+        "/",
+        "+=",
+        "-=",
+        "*=",
+        "/="
+      ]
+    },
+    "62ec40210fe2a133908663896f33c8e38299cb5d": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "2a5589e09b34e0416828f7580db28867fd05c026",
+        "917e25d82e46399fa8527a388b83aa302991e09f",
+        "e80c06199720d9b3e8e5884dce3fa7eb2b064cbc",
+        "954b75e321ffa9a184ac0f0843d5e02c8d0f60c7",
+        "8763e4140607550f79460a8b5c779868a21eae7b",
+        "eb9f9a6959f76450c76b90301f1e8c9c001b89a9",
+        "29e8a457ef187009bbc54a348cd81e4265d0c012",
+        "e91cfcd233272f55f19f6e7bb3e8548baaa532df",
+        "7091db5956eae40a5cf39c7debfc655cfa5357d0",
+        "17ddc0e088e4e70a741ebfb735b30b1d18d42049",
+        "4f5ff41b8ca0850fd0cbb21bb82f9210eb79173c",
+        "6ca118bf954bcf917c398e06b3485a500ea3a6da",
+        "a10b0b8dd6c4783762a6b3ab9f7a450881b20f22",
+        "4bdbd2d66ad9c9d0cfe613561083e0b7bf177009",
+        "d6ed3499fa4da0592df995e6fe75419c4605b0ab",
+        "215f1f9c02414ffee383bfd30db37c57f76f2c69",
+        "eca50e18cafa6e56602f8148def756821a94b1eb",
+        "9b4eb58f8e7c3ab8b3c2ff0584829971c4800dd3",
+        "0a492c561dfafeac21da369838a1e629f7fe0853",
+        "73c8fa057983bca8c37e6feb271643cd18a70e23",
+        "9697ef89ce2103386a113d1f16d5e2bc3a57e17c"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n  // Compound assignment \u2014 avoids temporary vec_type objects\n  vec_type &operator+=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] += o.data[i];\n    return *this;\n  }\n  vec_type &operator-=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] -= o.data[i];\n    return *this;\n  }\n  vec_type &operator*=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] *= o.data[i];\n    return *this;\n  }\n  vec_type &operator/=(const vec_type &o) {\n    for (int i = 0; i < N; i++)\n      data[i] /= o.data[i];\n    return *this;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n\nnamespace tl {\n\ntemplate <typename T> inline T clamp(T x, T lo, T hi) {\n  if (x != x)\n    return x;\n  if (lo != lo)\n    return lo;\n  if (hi != hi)\n    return hi;\n  T lower = x < lo ? lo : x;\n  return lower > hi ? hi : lower;\n}\n\ntemplate <typename T, int N>\ninline vec_type<T, N> clamp(vec_type<T, N> x, vec_type<T, N> lo,\n                            vec_type<T, N> hi) {\n  vec_type<T, N> result;\n  for (int i = 0; i < N; ++i) {\n    result.data[i] = clamp(x.data[i], lo.data[i], hi.data[i]);\n  }\n  return result;\n}\n\n} // namespace tl\n",
+      "has_vec_type": true,
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/",
+        "+=",
+        "-=",
+        "*=",
+        "/="
+      ]
+    },
+    "d71ce4abcc1c7bb8ff93ef5b1da671567421d89a": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "b3f4e03e695b552499e3d8ae5c76775f9e713a86"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++)\n      r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n",
+      "has_vec_type": true,
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/"
+      ]
+    },
+    "fcef3d1377321f1a0891f96c9a1f9146e602ded1": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "47a89225ad76fc8de49925be04045270fe19c212"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n  vec_type operator+(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++) r.data[i] = data[i] + o.data[i];\n    return r;\n  }\n  vec_type operator-(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++) r.data[i] = data[i] - o.data[i];\n    return r;\n  }\n  vec_type operator*(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++) r.data[i] = data[i] * o.data[i];\n    return r;\n  }\n  vec_type operator/(const vec_type &o) const {\n    vec_type r;\n    for (int i = 0; i < N; i++) r.data[i] = data[i] / o.data[i];\n    return r;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n",
+      "has_vec_type": true,
+      "operators": [
+        "+",
+        "-",
+        "*",
+        "/"
+      ]
+    },
+    "198412f73f7c56fd027a5e29b43c827f99e12c36": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "5e0ca6383746dc00ad01c7bd1b26c32f8a7d7a37",
+        "220c0e9e32e499b6f52a6ab606d5b1acbebf767c",
+        "c7fb9b82251b63c41ba9b801bdb651e1af8d4527",
+        "416f03ab05cc75d2d91d1caa60f665c6029792bd",
+        "9ab0119ce1c420f0839bd76b2b4c315f46dd340d",
+        "26ac2fe45e8ff9cdd45b42ea364063f38ed9f1a4",
+        "9f190f680d1881777ea2c09a5c7eea32e81c295d"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n#include <stdint.h>\n#include <string.h>\n\nusing half_float::half;\n\n// Vector types for CPU codegen.\n// The C codegen emits vector pointer casts like *(float4*)(ptr + offset)\n// and broadcast expressions like ((float4)(v, v, v, v)) where the comma\n// expression evaluates to a single value, requiring a one-arg constructor.\ntemplate <typename T, int N> struct vec_type {\n  T data[N];\n  vec_type() = default;\n  explicit vec_type(T v) {\n    for (int i = 0; i < N; i++)\n      data[i] = v;\n  }\n};\n\n#define TL_DEFINE_VEC(T)                                                       \\\n  using T##2 = vec_type<T, 2>;                                                 \\\n  using T##4 = vec_type<T, 4>;                                                 \\\n  using T##8 = vec_type<T, 8>;                                                 \\\n  using T##16 = vec_type<T, 16>;\n\nTL_DEFINE_VEC(float)\nTL_DEFINE_VEC(double)\nTL_DEFINE_VEC(half)\nTL_DEFINE_VEC(int8_t)\nTL_DEFINE_VEC(int16_t)\nTL_DEFINE_VEC(int32_t)\nTL_DEFINE_VEC(int64_t)\nTL_DEFINE_VEC(uint8_t)\nTL_DEFINE_VEC(uint16_t)\nTL_DEFINE_VEC(uint32_t)\nTL_DEFINE_VEC(uint64_t)\n\n#undef TL_DEFINE_VEC\n",
+      "has_vec_type": true,
+      "operators": []
+    },
+    "5850bcd1eb76956f5424efd54cbce1fa6ff3faa0": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "289ef29607641fa89be58880df06366012ac35f5"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n\n#include <math.h>\n#include <stdbool.h>\n\nusing half_float::half;\n\n// ============================================================================\n// Vector types for CPU/C++ backend\n// ============================================================================\n\n#ifdef __cplusplus\n// C++ version with constructor\nstruct float4 {\n  float x, y, z, w;\n\n  // Default constructor\n  float4() : x(0), y(0), z(0), w(0) {}\n\n  float4(float val) : x(val), y(val), z(val), w(val) {}\n\n  // Constructor for C++ (used in generated code)\n  float4(float x_val, float y_val, float z_val, float w_val)\n      : x(x_val), y(y_val), z(z_val), w(w_val) {}\n};\n#else\n// C version\ntypedef struct {\n  float x, y, z, w;\n} float4;\n#endif\n\n// Constructor for float4 (C and C++)\nstatic inline float4 make_float4(float x, float y, float z, float w) {\n  float4 result;\n  result.x = x;\n  result.y = y;\n  result.z = z;\n  result.w = w;\n  return result;\n}\n",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "f1fe801e69244acb942e492ccf0b1318f941370e": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "5f37623905549f5de9ea51ab8ffcd20d8825ad04",
+        "2818cd9c64d7fc6c2de10a747009c1bb901c8145",
+        "e90b5a846214de05239a1533e0790abc7375fa11",
+        "33123632e214b995aa64caa2df28942a6eefdb74",
+        "60856265bd7b2b35e33ebe329a61b5a954dd3a66",
+        "026aa567894b8750c018bcf5291f90c6d0aa1ab2",
+        "22455f2ffeb471a461c82bd2f3ab75a133666d74",
+        "017d314bf7d5af1236fe1e8ebc0b5d217e6f5a55",
+        "3ce8ac9b06428deee75c29fcbe65bac494b81f47",
+        "f1a101997fa8ef4644b5714bb98a5af241de9861",
+        "93348455b1f14dca24b48b7d29d1a0f35ebdc7c7",
+        "2674271e49d8d376632d26b6acf8736786275fab",
+        "40dfe433ab78736b3278ed562308322bc562cb86",
+        "be9c08f6fd5899b04b51ec7ba7a067cf6822c3e3"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n\nusing half_float::half;\n// Not Implemented\n",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "0ce6580d34b338bbf12b94d51d5092c897fc872e": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "949490344efdd9ccee84d9eb18c2f0e33213cc52",
+        "782ca9f64ee7897eecc7cacb40a5fdb9838ea270"
+      ],
+      "content": "#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n\nusing half_float::half;\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "b288cd114bb254791f6aaf8396616002b405ebaa": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "949490344efdd9ccee84d9eb18c2f0e33213cc52",
+        "782ca9f64ee7897eecc7cacb40a5fdb9838ea270"
+      ],
+      "content": "#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n\n// Not Implemented\nF",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "b212fe5a5a48b25cbf1c4f9c7ec1d0c5460c0b73": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "151e33e262940200a9640e896764a48b2b74ceae",
+        "372fc8f12d1ae609bdc7d0efe6962c04aa5e4bb6",
+        "1dc3aa195e219273784fb119190f1d9665f784f3",
+        "ce146507c36163a1dabbee80646e2ba355d92392",
+        "6f5ba3cb1c3eb3aa9ca17fd5fe3d3e602805116d"
+      ],
+      "content": "// Copyright (c) Tile-AI Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include \"half.hpp\"\n#include <math.h>\n#include <stdbool.h>\n\nusing half_float::half;\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "861a43d3d102a33e003b0db15a86de7aafa488c5": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "151e33e262940200a9640e896764a48b2b74ceae"
+      ],
+      "content": "// Copyright (c) Tile-AI Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "95b5ebaeea79b9a61cb7ee84a8d81967e8e94f21": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "372fc8f12d1ae609bdc7d0efe6962c04aa5e4bb6",
+        "1dc3aa195e219273784fb119190f1d9665f784f3",
+        "ce146507c36163a1dabbee80646e2ba355d92392",
+        "6f5ba3cb1c3eb3aa9ca17fd5fe3d3e602805116d",
+        "7d4d5ea8b191f49aa94a38584dfa0137fcc3da97"
+      ],
+      "content": "// Copyright (c) Tile-AI Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n\n// Not Implemented\nF",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "69a8132bf470762bd527664946e38322e31b69c0": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "7d4d5ea8b191f49aa94a38584dfa0137fcc3da97"
+      ],
+      "content": "// Copyright (c) Tile-AI Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n#include \"half.hpp\"\n\nusing half_float::half;\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "fd7ee7e9bf20bbbf160e9cd3e9d7b70a4324579a": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "06d675e3ee4cac7f69aaa0b00f221dec1438d8cf"
+      ],
+      "content": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n#include \"half.hpp\"\n\nusing half_float::half;\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "544872bd000f953409ddee2cd50b9415ed2decd4": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "06d675e3ee4cac7f69aaa0b00f221dec1438d8cf",
+        "544a875612ddfee69fed21a8d7b11957016191bc",
+        "de39637668f09e229e42af79e4385fe02768339d",
+        "c19bed51ef1debdf48cc42e26613c571d83ddaa0",
+        "c8fc0cbbcd1cc19bedab8555ea3b54b396980adb",
+        "41e2823f1c3f98007c1be1c79dd52451290d1681",
+        "ae79016b7aee1f390bffc7529b761910d9cea834"
+      ],
+      "content": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n\n// Not Implemented\n",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "fc8054f9b44dc526214165c9e774178a3483f1a5": {
+      "paths": [
+        "src/tl_templates/cpp/common.h"
+      ],
+      "commits": [
+        "544a875612ddfee69fed21a8d7b11957016191bc"
+      ],
+      "content": "// Copyright (c) Microsoft Corporation.\n// Licensed under the MIT License.\n#pragma once\n// #include <arm_neon.h>\n#pragma once\n\n#include <math.h>\n#include <stdbool.h>\n#include \"half.hpp\"\n\nusing half_float::half;\n// Not Implemented",
+      "has_vec_type": false,
+      "operators": []
+    },
+    "f1684484c7b79ea0620bced356dccc338311c721": {
+      "paths": [
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": [
+        "85660f552c3de0b85b4327c8217f9022f9736dd5",
+        "ece99756899ae414fdd6f48c3eb735a5a951bd2c",
+        "9356eb69a1691f78a72906233714db9208be97cb",
+        "913d14f29113b77d8fc630d7bdb0af7b22118534"
+      ],
+      "content": "#include <math.h>\n#include <stdbool.h>\n",
+      "has_vec_type": false,
+      "operators": []
+    }
+  }
+}

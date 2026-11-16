@@ -1,0 +1,104 @@
+{
+  "base": "54f19ec58db2463b7f3f5c7fe50608a598129295",
+  "scope": "native template-header compilation only; public TileLang kernel not yet exercised",
+  "results": [
+    {
+      "operator": "and",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/and.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/and"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/and.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/and.cc:4:14: error: no match for \u2018operator&\u2019 (operand types are \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019} and \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = a & b;\n      |            ~ ^ ~\n      |            |   |\n      |            |   vec_type<[...],[...]>\n      |            vec_type<[...],[...]>\n"
+    },
+    {
+      "operator": "or",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/or.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/or"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/or.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/or.cc:4:14: error: no match for \u2018operator|\u2019 (operand types are \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019} and \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = a | b;\n      |            ~ ^ ~\n      |            |   |\n      |            |   vec_type<[...],[...]>\n      |            vec_type<[...],[...]>\n"
+    },
+    {
+      "operator": "xor",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/xor.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/xor"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/xor.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/xor.cc:4:14: error: no match for \u2018operator^\u2019 (operand types are \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019} and \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = a ^ b;\n      |            ~ ^ ~\n      |            |   |\n      |            |   vec_type<[...],[...]>\n      |            vec_type<[...],[...]>\n"
+    },
+    {
+      "operator": "not",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/not.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/not"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/not.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/not.cc:4:12: error: no match for \u2018operator~\u2019 (operand type is \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = ~a;\n      |            ^~\n"
+    },
+    {
+      "operator": "left",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/left.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/left"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/left.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/left.cc:4:14: error: no match for \u2018operator<<\u2019 (operand types are \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019} and \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = a << b;\n      |            ~ ^~ ~\n      |            |    |\n      |            |    vec_type<[...],[...]>\n      |            vec_type<[...],[...]>\n"
+    },
+    {
+      "operator": "right",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/right.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/right"
+      ],
+      "compile_returncode": 1,
+      "diagnostic": "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/right.cc: In function \u2018int main()\u2019:\n/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/right.cc:4:14: error: no match for \u2018operator>>\u2019 (operand types are \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019} and \u2018int32_t4\u2019 {aka \u2018vec_type<int, 4>\u2019})\n    4 |   auto c = a >> b;\n      |            ~ ^~ ~\n      |            |    |\n      |            |    vec_type<[...],[...]>\n      |            vec_type<[...],[...]>\n"
+    },
+    {
+      "operator": "add_control",
+      "command": [
+        "g++",
+        "-std=c++17",
+        "-I",
+        "/workspace/scratch/4bed741d4966/repos/tilelang/src",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/add_control.cc",
+        "-o",
+        "/workspace/scratch/4bed741d4966/audit/tilelang/vector-header-probe/add_control"
+      ],
+      "compile_returncode": 0,
+      "diagnostic": ""
+    }
+  ]
+}
