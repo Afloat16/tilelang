@@ -1,0 +1,37 @@
+name: Compiler temporary-artifact history
+on:
+  push:
+    branches:
+      - validation/library-failure-history-20261117
+permissions:
+  contents: read
+jobs:
+  complete-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: tile-ai/tilelang
+          ref: 562cbc7c8188d4521920e76b708d00168e778f3b
+          path: history-source
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Retrieve upstream PRs and fork branches
+        working-directory: history-source
+        run: |
+          git fetch --filter=blob:none --no-tags https://github.com/tile-ai/tilelang.git '+refs/pull/*/head:refs/remotes/upstream-pr/*'
+          git fetch --filter=blob:none --no-tags https://github.com/Afloat16/tilelang.git '+refs/heads/*:refs/remotes/user-fork/*'
+      - name: Recover intermediate versions and older module paths
+        run: python .validation/tilelang/recover_library_histories.py history-source .validation/tilelang/library-history .audit/tilelang/initial-all-refs.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: library-artifact-history
+          include-hidden-files: true
+          path: .validation/tilelang/library-history
+          if-no-files-found: error
