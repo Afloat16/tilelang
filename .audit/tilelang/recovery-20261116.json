@@ -1,0 +1,75 @@
+{
+  "upstream": "tile-ai/tilelang",
+  "fork": "Afloat16/tilelang",
+  "source_base": "54f19ec58db2463b7f3f5c7fe50608a598129295",
+  "production_modified": false,
+  "actual_pull_requests": [],
+  "current_status": "Local execution environment unavailable; native build outcome unknown. Preparing ordinary CPU-only fork validation.",
+  "local_build": {
+    "configuration": "passed",
+    "last_observed_progress": "approximately 210/685",
+    "session_id": 81426,
+    "completion_code": null,
+    "validation_passed": false,
+    "log": "audit/tilelang/build-cpu-workspace-tmp.log",
+    "log_recovery": "local file currently inaccessible"
+  },
+  "preserved_checkpoint": "16424e6c759282d2ca0c33357e859d35621a8656",
+  "recoverable_evidence": {
+    "header_history": {
+      "commits": 96,
+      "unique_blobs": 20,
+      "upstream_pr_refs": 2904,
+      "fork_heads": 20
+    },
+    "header_baseline": "6 missing-operator compilation failures; addition control passes",
+    "public_api": "not yet run"
+  },
+  "previously_observed_local_only": {
+    "cpu_codegen": {
+      "commits": 158,
+      "blobs": 35
+    },
+    "cython_adapter": {
+      "commits": 634,
+      "blobs": 254,
+      "device_function_variants": 8
+    },
+    "raw_files_recovered": false,
+    "note": "Counts observed before environment loss; expanded raw artifacts not yet recovered. New validation includes fresh full-history reconstruction."
+  },
+  "candidates": [
+    {
+      "name": "CPU vector integer bitwise operators",
+      "status": "awaiting public API baseline"
+    },
+    {
+      "name": "CPU inputless and scalar-only output device",
+      "status": "awaiting real CPU execution with explicitly simulated accelerator current-device provider; no accelerator hardware claim"
+    }
+  ],
+  "excluded": [
+    {
+      "name": "CPU local reduction region offsets/extents",
+      "prior_pr": 3825
+    },
+    {
+      "name": "CPU Broadcast repeated scalar evaluation",
+      "prior_pr": 3803,
+      "commits": [
+        "8059493c4a98773b64ad43b4147a7fae2a407858",
+        "977b5d5038e0f6a016d21deeded53057146cb12f"
+      ]
+    },
+    {
+      "name": "CPU boolean vector storage",
+      "reason": "not established against storage widening; related codegen support already in PR 3803"
+    }
+  ],
+  "remote_validation_branch": "validation/cpu-core-baseline-20261116",
+  "restrictions": {
+    "no_product_patch_without_real_reproduction": true,
+    "no_changes_to_actions_permissions": true,
+    "no_retries_of_previously_rejected_Kornia_compile_JIT_ONNX": true
+  }
+}

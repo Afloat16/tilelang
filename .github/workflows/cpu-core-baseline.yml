@@ -1,0 +1,121 @@
+name: CPU core baseline reproduction
+on:
+  push:
+    branches:
+      - validation/cpu-core-baseline-20261116
+permissions:
+  contents: read
+jobs:
+  native-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      PYTHONUNBUFFERED: "1"
+      TILELANG_DISABLE_CACHE: "1"
+      TILELANG_CACHE_DIR: ${{ github.workspace }}/.cpu-kernel-cache
+      PYTHONPATH: ${{ github.workspace }}/source
+      TMPDIR: ${{ runner.temp }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: tile-ai/tilelang
+          ref: 562cbc7c8188d4521920e76b708d00168e778f3b
+          path: source
+          fetch-depth: 1
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install CPU build dependencies
+        run: |
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "apache-tvm-ffi==0.1.12" "torch-c-dlpack-ext==0.1.5" "z3-solver==4.15.4" "Cython==3.3.1" "numpy==2.5.5" "ml-dtypes==0.7.0" "cmake==4.4.5" "ninja==1.13.2" cloudpickle psutil tqdm typing-extensions pytest setuptools packaging
+          sudo apt-get update -qq
+          sudo apt-get install -y ccache
+          python -m pip freeze
+          g++ --version
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: tilelang-cpu-gcc13-py312-562cbc7-baseline-v1
+          restore-keys: tilelang-cpu-gcc13-py312-
+      - name: Configure CPU-only native source build
+        working-directory: source
+        run: |
+          git rev-parse HEAD
+          git submodule status --recursive
+          cmake -S . -B build -G Ninja -DUSE_CUDA=OFF -DUSE_ROCM=OFF -DUSE_METAL=OFF -DUSE_LLVM=OFF -DUSE_ASCEND=OFF -DPython_EXECUTABLE="$(command -v python)" -DPython3_EXECUTABLE="$(command -v python)" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      - name: Build exact unmodified source
+        id: native_build
+        working-directory: source
+        run: cmake --build build -j 4
+      - name: Existing CPU vector arithmetic controls
+        working-directory: source
+        run: python -m pytest -q -p no:cacheprovider testing/python/cpu/test_tilelang_cpu_vec_type.py
+      - name: Public CPU vector-bitwise baseline
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        working-directory: source
+        run: |
+          python ../.audit/tilelang/vector_bitwise_public_probe.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("../.audit/tilelang/vector-public-probe/baseline.json").read_text())
+          assert report["base_head"] == "562cbc7c8188d4521920e76b708d00168e778f3b"
+          rows = report["rows"]
+          assert len(rows) == 7
+          assert all(row.get("vectorized") for row in rows)
+          assert next(row for row in rows if row["operation"] == "add_control")["result"] == "passed"
+          for row in rows:
+              if row["operation"] != "add_control":
+                  assert row["result"] == "failed", row
+                  assert "operator" in row["error"] or "invalid operands" in row["error"], row
+          print("Confirmed all six public CPU vector bitwise compilation failures and one successful arithmetic control.")
+          PY
+      - name: Public CPU output-device baseline
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        working-directory: source
+        run: python ../.validation/tilelang/cpu_output_device_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpu-public-api-baselines
+          include-hidden-files: true
+          path: |
+            .audit/tilelang/vector-public-probe
+            .validation/tilelang/output-device-probe
+          if-no-files-found: warn
+  complete-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: tile-ai/tilelang
+          ref: 562cbc7c8188d4521920e76b708d00168e778f3b
+          path: history-source
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Retrieve all upstream PR heads and user fork heads
+        working-directory: history-source
+        run: |
+          git fetch --filter=blob:none --no-tags https://github.com/tile-ai/tilelang.git '+refs/pull/*/head:refs/remotes/upstream-pr/*'
+          git fetch --filter=blob:none --no-tags https://github.com/Afloat16/tilelang.git '+refs/heads/*:refs/remotes/user-fork/*'
+      - name: Reconstruct every reachable source version
+        run: python .validation/tilelang/recover_source_histories.py history-source .validation/tilelang/history-recovery .audit/tilelang/initial-all-refs.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: complete-source-histories
+          include-hidden-files: true
+          path: .validation/tilelang/history-recovery
+          if-no-files-found: error
