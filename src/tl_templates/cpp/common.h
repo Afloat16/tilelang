@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <type_traits>
 
 using half_float::half;
 
@@ -41,6 +42,43 @@ template <typename T, int N> struct vec_type {
     vec_type r;
     for (int i = 0; i < N; i++)
       r.data[i] = data[i] / o.data[i];
+    return r;
+  }
+  vec_type operator&(const vec_type &o) const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = data[i] & o.data[i];
+    return r;
+  }
+  vec_type operator|(const vec_type &o) const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = data[i] | o.data[i];
+    return r;
+  }
+  vec_type operator^(const vec_type &o) const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = data[i] ^ o.data[i];
+    return r;
+  }
+  vec_type operator~() const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = ~data[i];
+    return r;
+  }
+  vec_type operator<<(const vec_type &o) const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = static_cast<T>(static_cast<std::make_unsigned_t<T>>(data[i])
+                                 << o.data[i]);
+    return r;
+  }
+  vec_type operator>>(const vec_type &o) const {
+    vec_type r;
+    for (int i = 0; i < N; i++)
+      r.data[i] = data[i] >> o.data[i];
     return r;
   }
   // Compound assignment — avoids temporary vec_type objects
