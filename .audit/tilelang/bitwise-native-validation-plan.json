@@ -1,0 +1,12 @@
+{
+  "source_base": "562cbc7c8188d4521920e76b708d00168e778f3b",
+  "production_head": "ec074f910ce60148a34f74e63ed48579893cd946",
+  "production_branch": "fix/cpu-vector-bitwise-20261117",
+  "format_run": 44036958788,
+  "completed_base_run": 44033012704,
+  "base_native_build": "success",
+  "base_existing_arithmetic_tests": "2 passed",
+  "base_public_probe": "6 missing operator failures; 1 passing addition control",
+  "first_run_failure_reason": "Validation harness searched RuntimeError text for compiler stderr; stderr is inherited and the six diagnostics are in the job log. This was a harness assertion failure after a successful native build and successful control tests.",
+  "next_validation": "Exact base/candidate CPU source builds, 42 newly parameterized public tests, 2 existing arithmetic tests, integer header UBSan/floating controls. No new upstream PR yet."
+}

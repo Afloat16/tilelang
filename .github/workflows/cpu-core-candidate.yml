@@ -1,0 +1,152 @@
+name: CPU core candidate validation
+on:
+  push:
+    branches:
+      - validation/cpu-core-20261117
+permissions:
+  contents: read
+jobs:
+  native-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      PYTHONUNBUFFERED: "1"
+      TILELANG_DISABLE_CACHE: "1"
+      TILELANG_CACHE_DIR: ${{ github.workspace }}/.cpu-kernel-cache
+      PYTHONPATH: ${{ github.workspace }}/source
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: Afloat16/tilelang
+          ref: ec074f910ce60148a34f74e63ed48579893cd946
+          path: source
+          fetch-depth: 2
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12.16"
+      - name: Install exact CPU dependencies and formatting driver
+        run: |
+          python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install "apache-tvm-ffi==0.1.12" "torch-c-dlpack-ext==0.1.5" "z3-solver==4.15.4" "Cython==3.3.1" "numpy==2.5.5" "ml-dtypes==0.7.0" "cmake==4.4.5" "ninja==1.13.2" cloudpickle psutil tqdm typing-extensions pytest setuptools packaging pre-commit
+          sudo apt-get update -qq
+          sudo apt-get install -y ccache
+          python -m pip freeze
+          g++ --version
+      - name: Validate exact production diff and formatting
+        working-directory: source
+        run: |
+          test "$(git rev-parse HEAD)" = ec074f910ce60148a34f74e63ed48579893cd946
+          git diff --stat 562cbc7c8188d4521920e76b708d00168e778f3b HEAD
+          git diff --check 562cbc7c8188d4521920e76b708d00168e778f3b HEAD
+          bash format.sh --files src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          sha256sum src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git diff --exit-code
+      - uses: actions/cache/restore@v4
+        id: compiler_cache
+        with:
+          path: .ccache
+          key: tilelang-cpu-gcc13-py31216-562cbc7-core-v1
+          restore-keys: tilelang-cpu-gcc13-py31216-562cbc7-
+      - name: Configure exact base native CPU build
+        working-directory: source
+        run: |
+          git checkout --detach 562cbc7c8188d4521920e76b708d00168e778f3b
+          git submodule status --recursive
+          cmake -S . -B build -G Ninja -DUSE_CUDA=OFF -DUSE_ROCM=OFF -DUSE_METAL=OFF -DUSE_LLVM=OFF -DUSE_ASCEND=OFF -DPython_EXECUTABLE="$(command -v python)" -DPython3_EXECUTABLE="$(command -v python)" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      - name: Build native CPU libraries
+        id: native_build
+        working-directory: source
+        run: cmake --build build -j 4
+      - uses: actions/cache/save@v4
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' && steps.compiler_cache.outputs.cache-hit != 'true' }}
+        with:
+          path: .ccache
+          key: tilelang-cpu-gcc13-py31216-562cbc7-core-v1
+      - name: Confirm six public baseline failures and arithmetic controls
+        working-directory: source
+        run: |
+          mkdir -p ../.validation/tilelang/reports
+          python -m pytest -q -p no:cacheprovider testing/python/cpu/test_tilelang_cpu_vec_type.py
+          python ../.audit/tilelang/vector_bitwise_public_probe.py > ../.validation/tilelang/reports/baseline-public.log 2>&1
+          cat ../.validation/tilelang/reports/baseline-public.log
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("../.audit/tilelang/vector-public-probe/baseline.json").read_text())
+          assert report["base_head"] == "562cbc7c8188d4521920e76b708d00168e778f3b"
+          rows = report["rows"]
+          assert len(rows) == 7 and all(row.get("vectorized") for row in rows)
+          assert next(row for row in rows if row["operation"] == "add_control")["result"] == "passed"
+          log = Path("../.validation/tilelang/reports/baseline-public.log").read_text()
+          for row, operator in zip(rows[:6], ("&", "|", "^", "~", "<<", ">>")):
+              assert row["result"] == "failed" and row["error_type"] == "RuntimeError", row
+              assert "Compilation Failed!" in row["error"], row
+              assert "operator" + operator in log, operator
+          print("Confirmed six compiler diagnostics in real subprocess stderr and one public arithmetic control.")
+          PY
+      - name: New regression tests on exact base
+        working-directory: source
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q -p no:cacheprovider ../.validation/tilelang/bitwise/test_tilelang_cpu_vec_bitwise.py --junitxml=../.validation/tilelang/reports/base-new-tests.xml > ../.validation/tilelang/reports/base-new-tests.log 2>&1
+          baseline_status=$?
+          set -e
+          tail -70 ../.validation/tilelang/reports/base-new-tests.log
+          test "$baseline_status" = 1
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          cases=list(ET.parse("../.validation/tilelang/reports/base-new-tests.xml").iter("testcase"))
+          assert len(cases)==42, len(cases)
+          failed=[case for case in cases if case.find("failure") is not None]
+          assert len(failed)==28, [(case.attrib["name"], case.find("failure").attrib) for case in failed]
+          assert all("-259-" not in case.attrib["name"] for case in failed)
+          assert all(case.find("error") is None and case.find("skipped") is None for case in cases)
+          print("Expected baseline: 28 vectorized failures and 14 odd-length controls passed.")
+          PY
+      - name: Record additional independent CPU candidates
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        working-directory: source
+        run: |
+          python ../.validation/tilelang/odd_vector_width_probe.py
+          python ../.validation/tilelang/compiler_artifact_probe.py
+      - name: Restore and rebuild exact production candidate
+        if: ${{ !cancelled() && steps.native_build.outcome == 'success' }}
+        id: candidate_rebuild
+        working-directory: source
+        run: |
+          git checkout --detach ec074f910ce60148a34f74e63ed48579893cd946
+          git submodule update --init --recursive
+          cmake -S . -B build -G Ninja -DUSE_CUDA=OFF -DUSE_ROCM=OFF -DUSE_METAL=OFF -DUSE_LLVM=OFF -DUSE_ASCEND=OFF -DPython_EXECUTABLE="$(command -v python)" -DPython3_EXECUTABLE="$(command -v python)" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          cmake --build build -j 4
+          test "$(git rev-parse HEAD)" = ec074f910ce60148a34f74e63ed48579893cd946
+          sha256sum src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git diff --exit-code
+      - name: Execute public regression and existing arithmetic tests
+        if: ${{ !cancelled() && steps.candidate_rebuild.outcome == 'success' }}
+        working-directory: source
+        run: |
+          python -m pytest -q -p no:cacheprovider testing/python/cpu/test_tilelang_cpu_vec_bitwise.py testing/python/cpu/test_tilelang_cpu_vec_type.py --junitxml=../.validation/tilelang/reports/candidate-tests.xml
+      - name: Integer template sanitizer and floating controls
+        if: ${{ !cancelled() && steps.candidate_rebuild.outcome == 'success' }}
+        working-directory: source
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=undefined -fno-sanitize-recover=undefined -Isrc/tl_templates/cpp ../.validation/tilelang/bitwise/header_probe.cpp -o ../.validation/tilelang/reports/header-probe
+          ../.validation/tilelang/reports/header-probe
+          ccache --show-stats
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpu-bitwise-baseline-candidate-evidence
+          include-hidden-files: true
+          path: |
+            .validation/tilelang/reports
+            .audit/tilelang/vector-public-probe
+          if-no-files-found: warn
