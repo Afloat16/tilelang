@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-11-17T07:30:00Z",
+  "repository": "tile-ai/tilelang",
+  "base_sha": "562cbc7c8188d4521920e76b708d00168e778f3b",
+  "candidate": {
+    "branch": "fix/cpu-vector-bitwise-20261117",
+    "head_sha": "ec074f910ce60148a34f74e63ed48579893cd946",
+    "tree_sha": "fee2636753a09cbd017742843bfffab52fc7622e",
+    "title": "[CPU] Support integer vector bitwise operations",
+    "files": {
+      "src/tl_templates/cpp/common.h": {
+        "sha256": "2fa4fc4654e1a675cb0ef2616a8f68115038695b9b793a78305f88dc61605169"
+      },
+      "testing/python/cpu/test_tilelang_cpu_vec_bitwise.py": {
+        "sha256": "40c21628d3562d31dc430d4f7035e872391418ee509c51beb54cb769edcf283a"
+      }
+    }
+  },
+  "status": "validation_running_not_submitted",
+  "baseline": {
+    "run_id": 44033012704,
+    "job_id": 133869172305,
+    "url": "https://github.com/Afloat16/tilelang/actions/runs/44033012704",
+    "native_build": "succeeded_692_steps",
+    "existing_arithmetic_tests": {
+      "passed": 2
+    },
+    "public_api": {
+      "bitwise_missing_operator_failures": 6,
+      "arithmetic_controls_passed": 1
+    },
+    "job_conclusion": "failure",
+    "job_failure_reason": "Audit harness searched for compiler diagnostics in RuntimeError text, but real subprocess stderr contained the missing-operator errors. No claim that the job passed."
+  },
+  "formatting": {
+    "run_id": 44036958788,
+    "job_id": 133882040338,
+    "url": "https://github.com/Afloat16/tilelang/actions/runs/44036958788",
+    "conclusion": "success",
+    "format_sh": "passed_all_hooks",
+    "diff_check": "passed"
+  },
+  "candidate_validation": {
+    "branch": "validation/cpu-core-20261117",
+    "head_sha": "d791798861eed2e5c6fe5c3ce2787e64f1a76db9",
+    "run_id": 44039032163,
+    "url": "https://github.com/Afloat16/tilelang/actions/runs/44039032163",
+    "status": "in_progress",
+    "conclusion": null,
+    "expected_public_cases": 42,
+    "existing_arithmetic_cases": 2,
+    "private_header_ubsan_type_width_combinations": 32
+  },
+  "historical_dedup": {
+    "checkpoint_sha": "1834634835b4f3c64e408239636d7518860d6971",
+    "original_refs": 2924,
+    "missing_original_commits": [],
+    "upstream_pull_request_heads": 2904,
+    "fork_branches": 22,
+    "header_commits": 96,
+    "header_unique_blobs": 20,
+    "cpu_codegen_commits": 160,
+    "cpu_codegen_unique_blobs": 35,
+    "cython_commits": 634,
+    "cython_unique_blobs": 254,
+    "intermediate_commits_and_old_paths_included": true
+  },
+  "limits": [
+    "No upstream PR created.",
+    "No actual candidate public execution success claimed yet.",
+    "Public uint32 omitted because of the existing Cython wrapper type map limitation; generic header uint32 is covered by the private sanitizer probe.",
+    "The interrupted old local native build remains unknown, and is not counted as success."
+  ]
+}
