@@ -1,0 +1,67 @@
+name: Format CPU vector bitwise candidate
+on:
+  push:
+    branches:
+      - validation/cpu-vector-bitwise-format-20261117
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: tile-ai/tilelang
+          ref: 562cbc7c8188d4521920e76b708d00168e778f3b
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install project formatting driver
+        run: python -m pip install pre-commit
+      - name: Apply and inspect only intended candidate files
+        working-directory: source
+        run: |
+          cp ../.validation/tilelang/bitwise/common.h src/tl_templates/cpp/common.h
+          cp ../.validation/tilelang/bitwise/test_tilelang_cpu_vec_bitwise.py testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git add src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git diff --cached --check
+          git diff --cached --stat
+      - name: Run project formatting and retain fixes
+        working-directory: source
+        shell: bash
+        run: |
+          set +e
+          bash format.sh --files src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          first_status=$?
+          set -e
+          echo "Initial formatter exit: $first_status"
+          git diff -- src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git add src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          bash format.sh --files src/tl_templates/cpp/common.h testing/python/cpu/test_tilelang_cpu_vec_bitwise.py
+          git diff --cached --check
+      - name: Export exact formatted content
+        if: always()
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+          paths = ["src/tl_templates/cpp/common.h", "testing/python/cpu/test_tilelang_cpu_vec_bitwise.py"]
+          result = {path: {"content": Path(path).read_text(), "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest()} for path in paths}
+          raw = (json.dumps(result) + "\n").encode()
+          Path("../formatted-candidate.json").write_bytes(raw)
+          print("FORMATTED_CANDIDATE_BASE64=" + base64.b64encode(raw).decode())
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: formatted-cpu-vector-candidate
+          path: formatted-candidate.json
+          if-no-files-found: error
