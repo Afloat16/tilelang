@@ -123,4 +123,3 @@ TL_DEFINE_VEC(uint32_t)
 TL_DEFINE_VEC(uint64_t)
 
 #undef TL_DEFINE_VEC
-

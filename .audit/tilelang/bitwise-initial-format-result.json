@@ -1,0 +1,8 @@
+{
+  "run": 44036621920,
+  "job": 133880932121,
+  "result": "failed_before_format",
+  "cause": "src/tl_templates/cpp/common.h:126: new blank line at EOF",
+  "resolution": "Remove the extra blank line from the provisional header payload; retain both diff-check gates.",
+  "native_validation": "pending"
+}
