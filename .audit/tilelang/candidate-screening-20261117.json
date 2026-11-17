@@ -1,0 +1,78 @@
+{
+  "checked_at": "2026-11-17T06:48:36.673Z",
+  "source_base": "562cbc7c8188d4521920e76b708d00168e778f3b",
+  "status": "One candidate awaits public API native baseline; no production change or pull request.",
+  "candidates": [
+    {
+      "name": "CPU integer vector bitwise operators",
+      "state": "awaiting_public_api_baseline",
+      "history_evidence": "96 reachable header commits / 20 blobs and 160 CPU codegen commits / 35 blobs, including renamed paths and all reachable intermediate revisions."
+    }
+  ],
+  "excluded": [
+    {
+      "name": "CPU inputless/scalar-only output device",
+      "reason": "The same user-visible behavior is explicitly addressed by open PR 3634, although its implementation moves CPU execution to TVM-FFI.",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3634"
+    },
+    {
+      "name": "Narrow unsigned scalar Cython marshalling",
+      "reason": "Closed PR 3351 already contains the same uint8/uint16/uint32 ctypes mappings.",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3351"
+    },
+    {
+      "name": "bfloat16 scalar Cython support",
+      "reason": "Existing scalar support submissions include PR 3361 and PR 3416; no new implementation attempted.",
+      "prs": [
+        "https://github.com/tile-ai/tilelang/pull/3361",
+        "https://github.com/tile-ai/tilelang/pull/3416"
+      ]
+    },
+    {
+      "name": "CPU local reduction region offsets/extents",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3825"
+    },
+    {
+      "name": "CPU scalar Broadcast single evaluation",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3803",
+      "commits": [
+        "8059493c4a98773b64ad43b4147a7fae2a407858",
+        "977b5d5038e0f6a016d21deeded53057146cb12f"
+      ]
+    },
+    {
+      "name": "CPU boolean vector handling",
+      "reason": "Initial storage concern was unproven after lowering; relevant codegen handling is already proposed in PR 3803.",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3803"
+    },
+    {
+      "name": "Profiler compound symbolic shapes",
+      "pr": "https://github.com/tile-ai/tilelang/pull/3717"
+    },
+    {
+      "name": "CPU vector dtype casts",
+      "old_fork_commit": "1621c68b",
+      "reason": "Existing user fork contribution."
+    },
+    {
+      "name": "CPU widening reductions",
+      "old_fork_commit": "9a1a000",
+      "reason": "Existing user fork contribution."
+    }
+  ],
+  "history_reconstruction": {
+    "run_id": 44033012704,
+    "job_id": 133869171886,
+    "conclusion": "success",
+    "initial_ref_coverage": 2924,
+    "missing_initial_commits": [],
+    "gzip_sha256": "fd5fd568bf48a944b34819d56598cdfa7c298aabfa060d0df5b98fb8aa4e9733",
+    "source_json_sha256": "f22087876e914b28ffe08f11fe46ddb796c1f029444915130b2340daffa42978"
+  },
+  "native_public_validation": {
+    "run_id": 44033012704,
+    "job_id": 133869172305,
+    "status": "in_progress",
+    "conclusion": null
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "source_base": "562cbc7c8188d4521920e76b708d00168e778f3b",
+  "initial_snapshot_refs": 2924,
+  "missing_initial_commits": [],
+  "source_json_sha256": "f22087876e914b28ffe08f11fe46ddb796c1f029444915130b2340daffa42978",
+  "gzip_sha256": "fd5fd568bf48a944b34819d56598cdfa7c298aabfa060d0df5b98fb8aa4e9733",
+  "groups": {
+    "template_header": {
+      "paths": [
+        "src/tl_templates/cpp/common.h",
+        "src/tl_templates/cpu/common.h"
+      ],
+      "commits": 96,
+      "blobs": 20
+    },
+    "cpu_codegen": {
+      "paths": [
+        "src/backend/common/codegen/codegen_c.cc",
+        "src/backend/common/codegen/tirx/codegen_c.cc",
+        "src/cpu/codegen/codegen_c.cc",
+        "src/target/codegen_c.cc"
+      ],
+      "commits": 160,
+      "blobs": 35
+    },
+    "cython_adapter": {
+      "paths": [
+        "tilelang/jit/adapter/cython/adapter.py",
+        "tilelang/jit/adapter/cython/cython_wrapper.pyx"
+      ],
+      "commits": 634,
+      "blobs": 254
+    }
+  }
+}
