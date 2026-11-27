@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Sequence
@@ -257,27 +258,31 @@ def regression_all(
         else:
             child_env.pop("TL_PERF_REGRESSION_ONLY", None)
 
-        proc = subprocess.Popen(
-            [sys.executable, str(bench_file.path)],
-            cwd=str(bench_file.path.parent),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=child_env,
-        )
+        # Keep stderr separate without allowing its pipe to block stdout streaming.
+        with (
+            tempfile.TemporaryFile(mode="w+") as stderr_file,
+            subprocess.Popen(
+                [sys.executable, str(bench_file.path)],
+                cwd=str(bench_file.path.parent),
+                stdout=subprocess.PIPE,
+                stderr=stderr_file,
+                text=True,
+                env=child_env,
+            ) as proc,
+        ):
+            stdout_lines: list[str] = []
+            # Stream stdout in real-time.
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                stdout_lines.append(line)
+                # Do not print the JSON result line.
+                if not line.startswith(_RESULTS_JSON_PREFIX):
+                    print(line, end="", flush=True)
 
-        stdout_lines: list[str] = []
-        # Stream stdout in real-time.
-        assert proc.stdout is not None
-        for line in proc.stdout:
-            stdout_lines.append(line)
-            # Do not print the JSON result line.
-            if not line.startswith(_RESULTS_JSON_PREFIX):
-                print(line, end="", flush=True)
-
-        proc.wait()
-        stdout_content = "".join(stdout_lines)
-        stderr_content = proc.stderr.read() if proc.stderr else ""
+            proc.wait()
+            stdout_content = "".join(stdout_lines)
+            stderr_file.seek(0)
+            stderr_content = stderr_file.read()
 
         if proc.returncode != 0:
             failures.append(f"{bench_file.rel_path}\nSTDOUT:\n{stdout_content}\nSTDERR:\n{stderr_content}")
