@@ -2,6 +2,7 @@ from __future__ import annotations
 import ctypes
 import logging
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -59,7 +60,7 @@ class LibraryGenerator:
     def compile_lib(self, timeout: float = None):
         target = self.target
         verbose = self.verbose
-        extra_compile_options = [item for flag in (self.compile_flags or []) for item in flag.split()]
+        extra_compile_options = [item for flag in (self.compile_flags or []) for item in shlex.split(flag)]
         if is_cuda_target(target):
             from tilelang.env import CUTLASS_INCLUDE_DIR
 

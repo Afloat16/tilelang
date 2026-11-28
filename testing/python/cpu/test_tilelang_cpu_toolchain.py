@@ -1,6 +1,7 @@
 """CPU compile-flag policy consumed by the shared execution adapters."""
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -69,3 +70,24 @@ def test_tvm_ffi_uses_cpu_toolchain_flags(monkeypatch):
     monkeypatch.setattr(toolchain, "get_compile_flags", flags)
     adapter._make_executable()
     assert seen["options"] == ["-existing", "-O2", "-fopenmp"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="CPU Cython library compilation uses POSIX compiler flags")
+def test_cpu_library_compile_flags_preserve_quoted_include_paths(tmp_path):
+    from tilelang.jit.adapter.libgen import LibraryGenerator
+
+    headers = tmp_path / "custom headers"
+    headers.mkdir()
+    (headers / "value.h").write_text("#define HEADER_VALUE 36\n")
+    generator = LibraryGenerator(tvm.target.Target("c"))
+    generator.assign_pass_configs({})
+    generator.assign_compile_flags([f'-O2 -I"{headers}" -DVALUE=6'])
+    generator.update_lib_code('#include "value.h"\nextern "C" int quoted_flags_value() { return HEADER_VALUE + VALUE; }\n')
+    try:
+        generator.compile_lib()
+        library = generator.load_lib()
+        assert library.quoted_flags_value() == 42
+    finally:
+        generator.remove_lib()
+        if generator.srcpath is not None:
+            Path(generator.srcpath).unlink()
